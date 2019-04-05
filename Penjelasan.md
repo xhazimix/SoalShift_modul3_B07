@@ -1,11 +1,14 @@
 # Penjelasan Soal Shift Modul 3
 
 ### Nomer 1
-Diminta untuk membuat program C yang bisa menghitung faktorial secara parallel lalu menampilkan hasilnya secara berurutan
+* Diminta untuk membuat program C yang bisa menghitung faktorial secara parallel lalu menampilkan hasilnya secara berurutan
 Contoh:
     ./faktorial 5 3 4
+    
     3! = 6
+    
     4! = 24
+    
     5! = 120
 
 ###### Jawab
@@ -102,6 +105,96 @@ Source Code: [soal1.c](https://github.com/xhazimix/SoalShift_modul3_B07/blob/mas
   }
   ```
 * Menggunakan thread, socket dan shared memory : semua codingan saya menggunakan template yang disediakan di modul 3
+
+### Nomer 3
+Source Code : [soal3.c] (https://github.com/xhazimix/SoalShift_modul3_B07/blob/master/soal3/soal3.c)
+* Membuat kedua karakter (Agmal dan Iraj) menjadi dua fungsi void
+   ```
+   void agmal(void *ptr){
+      ...
+   }
+   
+   void iraj(void *ptr){
+      ...
+   }
+   ```
+* Kemudian, kedua fungsi ini akan dijalankan bersama-sama menggunakan thread
+   ```
+   pthread_t tid[3];
+   pthread_create(&tid[0], NULL, iraj, NULL);
+   pthread_create(&tid[1], NULL, agmal, NULL);
+   ...
+   pthread_join(tid[0], NULL);
+   pthread_join(tid[1], NULL);
+   ```
+* Semua status yang dibutuhkan diinisialisasi pada awal code. Count digunakan untuk menghitung, flag digunakan untuk penanda syarat agar program diberhentikan terpenuhi, dan agmal_wakeup serta iraj_sleep digunakan untuk penanda user memberikan command ke fungsi agmal atau iraj
+   ```
+   int WakeUp_Status = 0;
+   int Spirit_Status = 100;
+   int All_Status = 0;
+   int agmal_wakeup = 0;
+   int iraj_sleep = 0;
+   int agmal_count = 0;
+   int iraj_count = 0;
+   int flag = 0;
+   ```
+
+* "All Status", yaitu menampilkan status kedua sahabat
+   ```
+   if(strcmp(input, "All Status") == 0){
+	All_Status = 1;
+	printf("Agmal WakeUp_status = %d\n", WakeUp_Status);
+	printf("Iraj Spirit_status = %d\n\n", Spirit_Status);
+   }
+   ```
+   
+* “Agmal Ayo Bangun” menambah WakeUp_Status Agmal sebesar 15 point dan jika Spirit_Status Iraj <= 0, program akan berhenti.
+   ```
+   if(iraj_sleep && agmal_count < 3){
+         iraj_sleep = 0;
+         Spirit_Status -= 20;
+         iraj_count++;
+         if(Spirit_Status <= 0){
+             printf("Iraj ikut tidur, dan bangun kesiangan bersama Agmal\n");
+             exit(1); //program berhenti
+         }
+   }
+   ```
+   
+* “Iraj Ayo Tidur” mengurangi Spirit_Status Iraj sebanyak 20 point dan jika WakeUp_Status Agmal >= 100, program akan berhenti.
+   ```
+   if(agmal_wakeup && iraj_count < 3){
+         agmal_wakeup = 0;
+         WakeUp_Status += 15;
+         agmal_count++;
+         if(WakeUp_Status >= 100){
+             printf("Agmal Terbangun, mereka bangun pagi dan berolahraga\n");
+             exit(1); //program berhenti
+         }
+   }
+   ```
+
+* Jika Fitur “Agmal Ayo Bangun” dijalankan sebanyak 3 kali, maka secara otomatis fitur “Iraj Ayo Tidur” tidak bisa dijalankan selama 10 detik menggunakan sleep(10)
+   ```
+   if(agmal_count == 3){
+         printf("Fitur Iraj Ayo Tidur disabled 10 s\n");
+         sleep(10);
+         iraj_sleep = 0;
+         agmal_count = 0;
+         printf("Fitur Iraj Ayo Tidur telah aktif\n");
+   }
+   ```
+
+* Jika Fitur  “Iraj Ayo Tidur” dijalankan sebanyak 3 kali, maka Fitur “Agmal Ayo Bangun” Tidak bisa dijalankan selama 10 detik menggunakan sleep(10);
+   ```
+   if(iraj_count == 3){
+         printf("Agmal Ayo Bangun disabled 10 s\n");
+         sleep(10);
+         agmal_wakeup = 0;
+         iraj_count = 0;
+         printf("Fitur Agmal Ayo Bangun telah aktif\n");
+   }
+   ```
 
 ### Nomer 4
 
