@@ -17,13 +17,6 @@ void *kurang(void *k) {
 	}
 }
 
-void *cetak(void *c) {
-	int *barang;
-	barang=(void *)c;
-	printf("STock barang = %d\n", *barang); 
-	sleep(5);
-}
-
 int main(int argc, char const *argv[]) {
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
