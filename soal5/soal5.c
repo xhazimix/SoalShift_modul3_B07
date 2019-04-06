@@ -1,220 +1,290 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <termios.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<termios.h>
+#include<pthread.h>
+#include<unistd.h>
+#include<sys/ipc.h>
+#include<sys/shm.h>
 
-char name[50];
-int hunger_stat = 200;
-int hygiene_stat = 100;
-int health_stat = 300;
-int health_monster = 100;
-int bath_cool = 0;
-int food = 5;
-int stat = 0;
-int flag = 0;
-int alrdy_battle = 0;
+pthread_t tid[8];
+int hp=300;
+char monster_name[50];
+int hunger_status=200;
+int hygiene_status=100;
+int enemy_hp=100;
+int food_stock=100;
+int *shop_food_stock;
+int layer=1;
+int battle_mode=0;
+int bath_status=0;
+int time_hunger=10;
+int time_hygiene=30;
+int time_regen=10;
+int time_bath=20;
 
-char getch(){
-    char buf = 0;
-    struct termios old = {0};
-    if (tcgetattr(0, &old) < 0)
-            perror("tcsetattr()");
-    old.c_lflag &= ~ICANON;
-    old.c_lflag &= ~ECHO;
-    old.c_cc[VMIN] = 1;
-    old.c_cc[VTIME] = 0;
-    if (tcsetattr(0, TCSANOW, &old) < 0)
-        perror("tcsetattr ICANON");
-	if (read(0, &buf, 1) < 0)
-        perror ("read()");
-    old.c_lflag |= ICANON;
-    old.c_lflag |= ECHO;
-    if (tcsetattr(0, TCSADRAIN, &old) < 0)
-        perror ("tcsetattr ~ICANON");
-    return (buf);
-}
-
-void *hunger(void *ptr){
-	while(stat != 1){
-		sleep(10);
-		hunger_stat -= 5;
-		if(hunger_stat <= 0){
-			printf("Your pet died because of hunger!");
-			flag = 1;
-		}
+static struct termios old, new;
+/* Initialize new terminal i/o settings */
+void initTermios(int echo) 
+{
+	tcgetattr(0, &old); /* grab old terminal i/o settings */
+	new = old; /* make new settings same as old settings */
+	new.c_lflag &= ~ICANON; /* disable buffered i/o */
+	if (echo) {
+		new.c_lflag |= ECHO; /* set echo mode */
+	} else {
+		new.c_lflag &= ~ECHO; /* set no echo mode */
 	}
+	tcsetattr(0, TCSANOW, &new); /* use these new terminal i/o settings now */
 }
 
-void *hygiene(void *ptr){
-	while(stat != 1){
-		sleep(10);
-		hygiene_stat -= 10;
-		if(hygiene_stat <= 0){
-			printf("Your pet died because of dirty!");
-			flag = 1;
-		}
-	}
+/* Restore old terminal i/o settings */
+void resetTermios(void) 
+{
+	tcsetattr(0, TCSANOW, &old);
+}
+char getch_(int echo) 
+{
+	char ch;
+	initTermios(echo);
+	ch = getchar();
+	resetTermios();
+	return ch;
 }
 
-void *bath(void *ptr){
+/* Read 1 character without echo */
+char getch(void) 
+{
+	return getch_(0);
+}
+
+void *standby(void *menu){
 	while(1){
-		if(bath_cool != 0){
-			hygiene_stat += 30;
-			while(bath_cool != 0){
-				sleep(1);
-				bath_cool -= 1;
-			}
+		while(layer!=1){
 		}
+		system("clear");
+		printf("\n-----%s's Profile-----\n\n", monster_name);
+		printf("Health status : %d\n", hp);
+		printf("Hunger : %d\n", hunger_status);
+		printf("Hygiene : %d\n", hygiene_status);
+		printf("Food left : %d\n", food_stock);
+
+		if(bath_status!=1){
+			printf("Bad will ready in : %d\n", time_bath);
+		}
+		else {
+			printf("Bath is ready\n");
+		}
+
+		printf("1. Eat\n");
+		printf("2. Bath\n");
+		printf("3. Battle\n");
+		printf("4. Shop\n");
+		printf("5. Exit\n");
+		sleep(1);
 	}
 }
 
-void *regen(void *ptr){
-	while(stat != 1){
-		if(stat == 0){
-			health_stat += 5;
-			if(health_stat >= 300) {health_stat = 300;}
-			sleep(10);
-		}
-	}
-}
-
-void *standby(void *ptr){
-	char input;
+void *bath_ready(void *pointer){
 	while(1){
-		if(stat == 0){
-			input = getch();
-			if(input == '1'){
-				if(food != 0){
-					food--;
-					hunger_stat += 15;
-					if(hunger_stat > 200) {hunger_stat = 200;}
-					printf("Eating ...\n");
-					sleep(1);
-				}
-				else{
-					printf("You have no food!\n");
-					sleep(1);
-				}
-			}
-			else if(input == '2'){
-				if(hygiene_stat > 100) {hygiene_stat = 100;}
-				printf("Bathing ...\n");
-				sleep(1);
-				if(bath_cool == 0) bath_cool = 20;
-			}
-			else if(input == '3') {stat = 1;}
-			else if(input == '4') {stat = 2;}
-			else {flag = 1;}
+		while(bath_status==1){
+		}
+		sleep(1);
+		if(time_bath==1){
+			time_bath=20;
+			bath_status=1;
+		}
+		else{
+			time_bath--;
 		}
 	}
 }
 
-void *battle(void *ptr){
-	char input;
+void *shop(void *menu){
 	while(1){
-		if(stat == 1){
-			input = getch();
-			if(input == '1'){
-				printf("Attack!!\n"); sleep(1);
-				health_monster -= 20;
-				printf("Getting Hit!!\n"); sleep(1);
-				health_stat -= 20;
-				if(health_monster == 0){
-					printf("Monster defeated!!\n"); sleep(1);
-					health_monster = 100;
-					stat = 0;
-				}
-				alrdy_battle = 1;
-			}
-			else if(input == '2'){
-				printf("Escaping ...\n");
-				health_monster = 100;
-				stat = 0;
-				alrdy_battle = 1;
-			}
+		while(layer!=3){
 		}
-	}
-
-	if(alrdy_battle == 1){
-	pthread_t tid2[10];
-	pthread_create(&tid2[0], NULL, hunger, NULL);
-  	pthread_create(&tid2[1], NULL, hygiene, NULL);
-  	pthread_create(&tid2[2], NULL, bath, NULL);
-  	pthread_create(&tid2[3], NULL, regen, NULL);
-  	pthread_create(&tid2[4], NULL, standby, NULL);
-  	pthread_create(&tid2[5], NULL, battle, NULL);
-
-	pthread_join(tid2[0], NULL);
-	pthread_join(tid2[1], NULL);
-	pthread_join(tid2[2], NULL);
-	pthread_join(tid2[3], NULL);
-	pthread_join(tid2[4], NULL);
-	pthread_join(tid2[5], NULL);
-
-	alrdy_battle = 0;
+		system("clear");
+		printf("\nSHOP MODE\n\n");
+		printf("Shop food stock : %d\n", *shop_food_stock);
+		printf("Your food stock : %d\n", food_stock);
+		printf("Choices\n");
+		printf("1. Buy\n");
+		printf("2. Back\n");
+		sleep(1);
 	}
 }
 
-void *shop(void *ptr){
-	char input;
+void *shared_memory(void *pointer){
+	key_t key=1234;
+	int shmid=shmget(key, sizeof(int), IPC_CREAT | 0666);
+	shop_food_stock=shmat(shmid, NULL, 0);
+	*shop_food_stock=100;
+}
+
+void *battle(void *menu){
 	while(1){
-		if(stat == 2){
-			printf("not yet done!!\n"); sleep(1);
-			stat = 0;
+		while(layer!=2){
+		}
+		system("clear");
+		printf("\nBATTLE MODE\n\n");
+		printf("Monster's Health : %d\n", hp);
+		printf("Enemy's Health : %d\n", enemy_hp);
+		printf("Choices\n");
+		printf("1. Attack\n");
+		printf("2. Run\n");
+		sleep(1);
+	}
+}
+
+void *regen_hp(void *pointer){
+	while(1){
+		while(layer==2){
+		}
+		sleep(1);
+		if(time_regen==1){
+			time_regen=10;
+			hp+=5;
+		}
+		else{
+			time_regen--;
+		}
+		
+		if(hp<=0){
+			printf("Monster anda mati karena dicabut nyawanya oleh malaikat maut\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
+void *decrement_hunger(void *pointer){
+	while(1){
+		while(layer==2){
+		}
+		sleep(1);
+		if(time_hunger==1){
+			time_hunger=10;
+			hunger_status-=5;
+		}
+		else{
+			time_hunger--;
+		}
+		if(hunger_status<=0){
+			printf("Monster mati karena kamu pelit makanan\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
+void *decrement_hygiene(void *pointer){
+	while(1){
+		while(layer==2){
+		}		
+		sleep(1);
+		if(time_hygiene==1){
+			time_hygiene=30;
+			hygiene_status-=10;
+		}
+		else{
+			time_hygiene--;
+		}
+		if(hygiene_status<=0){
+			printf("Monster mati karena anda dan peliharaan anda jarang mandi\n");
+			exit(EXIT_FAILURE);
 		}
 	}
 }
 
 int main(){
-	printf("Give your pet a name: ");
-	scanf("%s", name);
-	
-	pthread_t tid[10];
-	pthread_create(&tid[0], NULL, hunger, NULL);
-  	pthread_create(&tid[1], NULL, hygiene, NULL);
-  	pthread_create(&tid[2], NULL, bath, NULL);
-  	pthread_create(&tid[3], NULL, regen, NULL);
-  	pthread_create(&tid[4], NULL, standby, NULL);
-  	pthread_create(&tid[5], NULL, battle, NULL);
+	char choose;
+	printf("Masukkan nama monster : ");
+	scanf ("%49[^\n]",monster_name);
+	pthread_create(&(tid[0]),NULL,standby,NULL);
+	pthread_create(&(tid[1]),NULL,bath_ready,NULL);
+	pthread_create(&(tid[2]),NULL,shop,NULL);
+	pthread_create(&(tid[3]),NULL,shared_memory,NULL);
+	pthread_create(&(tid[4]),NULL,battle,NULL);
+	pthread_create(&(tid[5]),NULL,regen_hp,NULL);
+	pthread_create(&(tid[6]),NULL,decrement_hunger,NULL);
+	pthread_create(&(tid[7]),NULL,decrement_hygiene,NULL);
 
-  	while(flag == 0){
-  		if(stat == 0){
-  			printf("Standby\n");
-			printf("-- %s's Status --\n", name);
-  			printf("Health : %d\n", health_stat);
-  			printf("Hunger : %d\n", hunger_stat);
-  			printf("Hygiene : %d\n", hygiene_stat);
-  			printf("Food : %d\n", food);
-  			if (bath_cool == 0) {printf("Bath is available\n");}
-  			else {printf("Bath will be available after %ds\n", bath_cool);}
-  			printf("Choices: \n");
-  			printf("1. Eat\n2. Bath\n3. Battle\n4. Shop\n5. Exit\n");
+	while(1){
+		choose=getch();
+		if(choose=='1'){
+			if(food_stock>0){
+				printf("\nFeeding your monster\n");
+				hunger_status+=15;
+				food_stock--;
+				if(hunger_status>200){
+					hunger_status=200;
+				}
+			}
 		}
-		else if(stat == 1){
-			printf("Monster Battle!\n");
-			printf("-- %s's Status --\n", name);
-			printf("Pet Health : %d\n", health_stat);
-			printf("Monster Health : %d\n", health_monster);
-			printf("Choices : \n");
-			printf("1. Attack\n2. Run\n\n");
+		else if(choose=='2'){
+			if(bath_status==1){
+				printf("\nCleaning your monster\n"); sleep(1);
+				bath_status=0;
+				hygiene_status+=30;
+				if(hygiene_status>100){
+					hygiene_status=100;
+				}
+			}
+			else if(bath_status==0){
+				printf("\nBath not yet ready\n"); sleep(1);
+			}
 		}
-		else if(stat == 2){
-			printf("Shopping for Food!");
-			printf("Choices: \n");
-			printf("1. Buy\n2.Exit\n");
+		else if(choose=='3'){
+			enemy_hp=100;
+			while(1){
+				layer=2;
+				char choose_battle;
+				choose_battle=getch();
+				if(choose_battle=='1'){
+					enemy_hp-=20;
+					hp-=20;
+					if(enemy_hp<=0){
+						printf("\n You WIN\n\n");
+						break;
+					}
+					else if(hp<=0){
+						printf("\n You LOSE NOOB\n\n");
+						exit(EXIT_FAILURE);
+					}
+				}
+				if(choose_battle=='2'){
+					layer=1;
+					break;
+				}
+			}
 		}
-		sleep(1);
-		system("clear");
+		else if(choose=='4'){
+			while(1){
+				layer=3;
+				char choose_shop;
+				choose_shop=getch();
+				if(choose_shop=='1'){
+					food_stock+=1;
+					*shop_food_stock-=1;
+				}
+				if(choose_shop=='2'){
+					layer=1;
+					break;
+				}
+			}
+		}
+		else if(choose=='5'){
+			system("clear");
+			printf("\nSEE YOU NEXT TIME!\n\n");
+			exit(EXIT_FAILURE);
+		}
 	}
-	
-	pthread_join(tid[0], NULL);
-	pthread_join(tid[1], NULL);
-	pthread_join(tid[2], NULL);
-	pthread_join(tid[3], NULL);
-	pthread_join(tid[4], NULL);
-	pthread_join(tid[5], NULL);
-	
-	exit(0);
+	pthread_join(tid[0],NULL);
+	pthread_join(tid[1],NULL);
+	pthread_join(tid[2],NULL);
+	pthread_join(tid[3],NULL);
+	pthread_join(tid[4],NULL);
+	pthread_join(tid[5],NULL);
+	pthread_join(tid[6],NULL);
+	pthread_join(tid[7],NULL);
+
 	return 0;
 }
