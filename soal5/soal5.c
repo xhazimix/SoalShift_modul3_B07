@@ -69,7 +69,7 @@ void *standby(void *menu){
 		printf("Food left : %d\n", food_stock);
 
 		if(bath_status!=1){
-			printf("Bad will ready in : %d\n", time_bath);
+			printf("Bath will ready in : %d\n", time_bath);
 		}
 		else {
 			printf("Bath is ready\n");
@@ -118,7 +118,7 @@ void *shared_memory(void *pointer){
 	key_t key=1234;
 	int shmid=shmget(key, sizeof(int), IPC_CREAT | 0666);
 	shop_food_stock=shmat(shmid, NULL, 0);
-	*shop_food_stock=100;
+	*shop_food_stock=2;
 }
 
 void *battle(void *menu){
@@ -262,8 +262,13 @@ int main(){
 				char choose_shop;
 				choose_shop=getch();
 				if(choose_shop=='1'){
-					food_stock+=1;
-					*shop_food_stock-=1;
+					if(*shop_food_stock>0){
+						food_stock+=1;
+						*shop_food_stock-=1;
+					}
+					else{
+						printf("\nSorry, Items SOLD OUT\n");
+					}
 				}
 				if(choose_shop=='2'){
 					layer=1;
