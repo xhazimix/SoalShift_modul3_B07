@@ -1,60 +1,51 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
 
-int faktorial[10];
-int front, rear;
+int faktorial[50];
+int j=1;
+pthread_t tid[50];
 
-void display_pq();
-void check();
-void insert_pq();
-
-int main(int argc, char *argv[]){
-	front = rear = -1;
-	int i;
-	for(i=0; i<argc-1; i++){
-		int a = strtol(argv[i+1], NULL, 10);
-//		printf("a = %d\n", a);
-		insert_pq(a);
+void *func_faktorial(void *args){
+	int i, hasil=1;
+	for(i=1; i<=faktorial[j]; i++){
+		hasil = hasil*i;
 	}
-	display_pq(argc);
-	return 0;
+	printf("%d! = %d\n", faktorial[j], hasil);
+	j++;
 }
 
-int func_faktorial(int data){
-	if(data == 0) return 1;
-	else return (data * func_faktorial(data-1));
-}
+int main(int argc, void *argv[]){
+	int i=1, j, k;
 
-void display_pq(int j){
-	int i;
-	for(i=0; i < j-1; i++){
-		printf("%d! = %d\n", faktorial[i], func_faktorial(faktorial[i]));
+	while(argv[i] != NULL){
+		faktorial[i] = atoi(argv[i]);
+		i++;
 	}
-}
 
-void check(int data){
-	int i, j;
-	for(i=0; i <= rear; i++){
-		if(data <= faktorial[i]){
-			for(j=rear+1; j > i; j--){
-				faktorial[j] = faktorial [j-1];
+	for(j=1; j<argc; j++){
+		for(k=j+1; k<argc; k++){
+			int angka1 = faktorial[j];
+			int angka2 = faktorial[k];
+			if(angka1 > angka2){
+				char *temp = argv[k];
+				int temp2 = faktorial[k];
+				faktorial[k] = faktorial[j];
+				faktorial[j] = temp2;
+				argv[k] = argv[j];
+				argv[j] = temp;
 			}
-			faktorial[i] = data;
-			return;
 		}
 	}
-	faktorial[i] = data;
-//	display_pq();
-}
 
-void insert_pq(int data){
-	if((front == -1) && (rear == -1)){
-		front++; rear++;
-		faktorial[rear] = data;
-//		printf("faktorial = %d\n", faktorial[rear]);
-		return;
+	for(i=1; i<argc; i++){
+		pthread_create(&(tid[i-1]), NULL, &func_faktorial, (void*) argv[i]);
 	}
-	else	check(data);
-	rear++;
-}
 
+	for(i=1; i<argc; i++){
+		pthread_join(tid[i-1], NULL);
+	}
+
+	return 0;
+}
