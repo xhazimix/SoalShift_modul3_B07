@@ -1,4 +1,4 @@
-  #include <stdio.h>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <netinet/in.h>
@@ -9,12 +9,14 @@
 #include <pthread.h>
 #define PORT 8080
 
-void *kurang(void *k) {
-	int *barang;
-	barang=(void *)k;
-	if(*barang>0) {
-		*barang-=1;
-	}
+int *stock;
+pthread_t buy;
+char *gagal = "Transaksi Gagal Bro";
+char *berhasil = "Transaksi Berhasil";
+
+void *kurang(void *pointer){
+	stock=(void *)pointer;
+	*stock-=1;
 }
 
 int main(int argc, char const *argv[]) {
@@ -24,6 +26,14 @@ int main(int argc, char const *argv[]) {
     int addrlen = sizeof(address);
     char buffer[1024] = {0};
     char *hello = "Hello from server";
+    char *beli="beli";
+
+    key_t key = 1024;
+
+    int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
+    stock = shmat(shmid, NULL, 0);
+
+    *stock = 10;
       
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
@@ -54,56 +64,19 @@ int main(int argc, char const *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-	key_t key = 1234;
-        int *barang;
-
-        int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
-        barang = shmat(shmid, NULL, 0);
-
-	char *gagal="Transaksi Gagal";
-	char *berhasil="Transaksi Berhasil";
-	char *beli="Beli";
-
-        //shmdt(value);
-        //shmctl(shmid, IPC_RMID, NULL);
-
-    valread = read( new_socket , buffer, 1024);
-    //printf("%s\n",buffer );
-    if(*barang<=0) {
-    	send(new_socket , gagal , strlen(gagal) , 0 );
-    }
-
-    else  {
-    	send(new_socket , berhasil , strlen(berhasil) , 0 );
-   } 
-   //printf("Hello message sent\n");
-
-//-----------------------Thread-----------------------
-
-    pthread_t thread1, thread2;//inisialisasi awal
-    const char *message1 = "Thread 1";
-    int  iret1, iret2;
-
-	  if(strcmp(buffer, beli)==0) {
-	    	iret1 = pthread_create( &thread1, NULL, kurang, (void*) barang); //membuat thread pertama
-	    	if(iret1) //jika eror
-	    	{
-			fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
-			exit(EXIT_FAILURE);
-	    	}
-	    	pthread_join( thread1, NULL);
-	    }
-
-	while(1) {
-	    iret2 = pthread_create( &thread2, NULL, cetak, (void*) barang);//membuat thread kedua
-	    if(iret2)//jika gagal
-	    {
-		fprintf(stderr,"Error - pthread_create() return code: %d\n",iret2);
-		exit(EXIT_FAILURE);
-	    }
-	    pthread_join( thread2, NULL); 
+	while(1){
+		valread = read( new_socket , buffer, 1024);
+		if(strcmp(buffer, beli)==0){
+			if(*stock>0){
+				pthread_create(&buy, NULL, kurang, (void *)stock);
+				send(new_socket, berhasil, strlen(berhasil), 0);
+			}
+			else{
+				send(new_socket, gagal, strlen(gagal), 0);
+			}
+		}
+		else{
+			send(new_socket, gagal, strlen(gagal), 0);
+		}
 	}
-
-exit(EXIT_SUCCESS);
-   return 0;
 }

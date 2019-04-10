@@ -9,17 +9,19 @@
 #include <pthread.h>
 #define PORT 9090
 
-void *nambah(void *k) {
-	int *barang;
-	barang=(void *)k;
-	*barang+=1;
+int *stock;
+pthread_t restock, print;
+
+void *jual(void *pointer){
+	stock=(void *)pointer;
+	*stock+=1;
 }
 
-void *cetak(void *c) {
-	int *barang;
-	barang=(void *)c;
-	printf("STock barang = %d\n", *barang); 
-	sleep(5);
+void *cetak(void *pointer){
+	while(1){
+		printf("Stock barang = %d\n", *stock);
+		sleep(5);
+	}
 }
 
 int main(int argc, char const *argv[]) {
@@ -29,6 +31,12 @@ int main(int argc, char const *argv[]) {
     int addrlen = sizeof(address);
     char buffer[1024] = {0};
     char *hello = "Hello from server";
+    char *tambah="tambah";
+
+    key_t key = 1024;
+
+    int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
+    stock = shmat(shmid, NULL, 0);
       
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
@@ -59,46 +67,15 @@ int main(int argc, char const *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-	key_t key = 1234;
-        int *barang;
-
-        int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
-        barang = shmat(shmid, NULL, 0);
-
-	char *tambah="Tambah";
-
-        //shmdt(value);
-        //shmctl(shmid, IPC_RMID, NULL);
-
-    valread = read( new_socket , buffer, 1024);
-    //printf("%s\n",buffer );
-   //printf("Hello message sent\n");
-
-//-----------------------Thread-----------------------
-
-    pthread_t thread1, thread2;//inisialisasi awal
-    int  iret1, iret2;
-
-	  if(strcmp(buffer, tambah)==0) {
-	    	iret1 = pthread_create( &thread1, NULL, nambah, (void*) barang); //membuat thread pertama
-	    	if(iret1) //jika eror
-	    	{
-			fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
-			exit(EXIT_FAILURE);
-	    	}
-	    	pthread_join( thread1, NULL);
-	    }
-
-while(1) {
-	    iret2 = pthread_create( &thread2, NULL, cetak, (void*) barang);//membuat thread kedua
-	    if(iret2)//jika gagal
-	    {
-		fprintf(stderr,"Error - pthread_create() return code: %d\n",iret2);
-		exit(EXIT_FAILURE);
-	    }
-	    pthread_join( thread2, NULL); 
+	pthread_create(&print, NULL, cetak, (void *)stock);
+	while(1){
+		valread = read( new_socket , buffer, 1024);
+		if(strcmp(buffer, tambah)==0){
+			if(*stock>0){
+				pthread_create(&restock, NULL, jual, (void *)stock);
+			}
+		}
 	}
-
-exit(EXIT_SUCCESS);
-   return 0;
+	pthread_join(print, NULL);
+	pthread_join(restock, NULL);
 }

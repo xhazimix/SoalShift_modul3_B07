@@ -5,19 +5,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #define PORT 9090
   
 int main(int argc, char const *argv[]) {
-
-	char *nambah;
-	scanf("%s", nambah);
-
     struct sockaddr_in address;
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
-
+    char *hello = "Hello from client";
     char buffer[1024] = {0};
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\n Socket creation error \n");
@@ -39,9 +33,9 @@ int main(int argc, char const *argv[]) {
         return -1;
     }
 
-    send(sock , nambah , strlen(nambah) , 0 );
-    //printf("Hello message sent\n");
-    //valread = read( sock , buffer, 1024);
-    //printf("%s\n",buffer );
-    return 0;
+    char *kurang;
+    while(1){
+	scanf("%s", kurang);
+	send(sock , kurang , strlen(kurang) , 0 );
+    }
 }
